@@ -184,12 +184,14 @@ bool CreatureEvent::configureEvent(const pugi::xml_node& node)
 	} else if (tmpStr == "healthchange") {
 		type = CREATURE_EVENT_HEALTHCHANGE;
 	} else if (tmpStr == "manachange") {
-		type = CREATURE_EVENT_MANACHANGE;
-	} else if (tmpStr == "extendedopcode") {
-		type = CREATURE_EVENT_EXTENDED_OPCODE;
-	} else {
-		std::cout << "[Error - CreatureEvent::configureEvent] Invalid type for creature event: " << eventName << std::endl;
-		return false;
+ 		type = CREATURE_EVENT_MANACHANGE;
+ 	} else if (tmpStr == "extendedopcode") {
+ 		type = CREATURE_EVENT_EXTENDED_OPCODE;
+	} else if (tmpStr == "move") {
+		type = CREATURE_EVENT_MOVE;
+ 	} else {
+ 		std::cout << "[Error - CreatureEvent::configureEvent] Invalid type for creature event: " << eventName << std::endl;
+ 		return false;
 	}
 
 	loaded = true;
@@ -233,12 +235,15 @@ std::string CreatureEvent::getScriptEventName() const
 		case CREATURE_EVENT_MANACHANGE:
 			return "onManaChange";
 
-		case CREATURE_EVENT_EXTENDED_OPCODE:
-			return "onExtendedOpcode";
+ 		case CREATURE_EVENT_EXTENDED_OPCODE:
+ 			return "onExtendedOpcode";
+ 
+		case CREATURE_EVENT_MOVE:
+			return "onMove";
 
-		case CREATURE_EVENT_NONE:
-		default:
-			return std::string();
+ 		case CREATURE_EVENT_NONE:
+ 		default:
+ 			return std::string();
 	}
 }
 
@@ -579,6 +584,28 @@ void CreatureEvent::executeExtendedOpcode(Player* player, uint8_t opcode, const 
 
 	lua_pushnumber(L, opcode);
 	LuaScriptInterface::pushString(L, buffer);
+	
+bool CreatureEvent::executeOnMove(Player* player, const Position& fromPosition, const Position& toPosition)
+{
+	//onMove(player, frompos, topos)
+	if (!scriptInterface->reserveScriptEnv()) {
+		std::cout << "[Error - CreatureEvent::executeOnMove] Call stack overflow" << std::endl;
+		return false;
+	}
+
+	ScriptEnvironment* env = scriptInterface->getScriptEnv();
+	env->setScriptId(scriptId, scriptInterface);
+
+	lua_State* L = scriptInterface->getLuaState();
+	scriptInterface->pushFunction(scriptId);
+
+	LuaScriptInterface::pushUserdata(L, player);
+	LuaScriptInterface::setMetatable(L, -1, "Player");
+	LuaScriptInterface::pushPosition(L, fromPosition);
+	LuaScriptInterface::pushPosition(L, toPosition);
+
+	return scriptInterface->callFunction(3);
+}
 
 	scriptInterface->callVoidFunction(3);
 }
